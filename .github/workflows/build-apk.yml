@@ -44,7 +44,7 @@ jobs:
           convert -background '#690018' assets/click-your-dream-logo.svg -resize 320x320 app/src/main/res/drawable-nodpi/splash_logo.png
           cat > app/src/main/res/drawable-nodpi/splash_background.xml <<'EOF'
           <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:drawable="#690018" />
+              <item><shape><solid android:color="#690018" /></shape></item>
               <item><bitmap android:src="@drawable/splash_logo" android:gravity="center" /></item>
           </layer-list>
           EOF
