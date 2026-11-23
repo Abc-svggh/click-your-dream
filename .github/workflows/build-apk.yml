@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - "index.html"
+      - "assets/click-your-dream-logo.svg"
       - ".github/workflows/build-apk.yml"
 
 permissions:
@@ -31,7 +32,34 @@ jobs:
       - name: Create Android project
         shell: bash
         run: |
-          mkdir -p app/src/main/assets app/src/main/java/com/clickyourdream/app
+          mkdir -p app/src/main/assets app/src/main/java/com/clickyourdream/app app/src/main/res/drawable-nodpi app/src/main/res/values
+          cp assets/click-your-dream-logo.svg app/src/main/assets/logo.svg
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"; pixels="${spec##*:}"
+            mkdir -p "app/src/main/res/mipmap-${density}"
+            convert -background none assets/click-your-dream-logo.svg -resize "${pixels}x${pixels}" "app/src/main/res/mipmap-${density}/ic_launcher.png"
+          done
+          convert -background '#690018' assets/click-your-dream-logo.svg -resize 320x320 app/src/main/res/drawable-nodpi/splash_logo.png
+          cat > app/src/main/res/drawable-nodpi/splash_background.xml <<'EOF'
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="#690018" />
+              <item><bitmap android:src="@drawable/splash_logo" android:gravity="center" /></item>
+          </layer-list>
+          EOF
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#D9A33A</item>
+                  <item name="android:windowBackground">@drawable/splash_background</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#690018</item>
+                  <item name="android:navigationBarColor">#31000D</item>
+              </style>
+          </resources>
+          EOF
           cp index.html app/src/main/assets/index.html
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
@@ -55,8 +83,8 @@ jobs:
                   applicationId 'com.clickyourdream.app'
                   minSdk 23
                   targetSdk 28
-                  versionCode 2
-                  versionName '1.1'
+                  versionCode 3
+                  versionName '1.2'
               }
           }
           EOF
@@ -65,7 +93,9 @@ jobs:
               <application
                   android:allowBackup="false"
                   android:label="Click Your Dream"
-                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher"
+                  android:theme="@style/AppTheme"
                   android:usesCleartextTraffic="false">
                   <activity
                       android:name=".MainActivity"
