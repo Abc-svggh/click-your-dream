@@ -205,7 +205,7 @@ function printSection(id){
  .print-target .tablewrap{overflow:visible!important}
  `;
  w.document.open();w.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><style>'+sourceStyle+'\\n'+extra+'</style></head><body>'+clone.outerHTML+'</body></html>');w.document.close();
- w.onload=()=>{w.focus();setTimeout(()=>{try{w.print()}catch(e){alert('PDF print could not be opened.')}} ,350)};
+ setTimeout(()=>{try{w.focus();w.print()}catch(e){alert('PDF print could not be opened.')}},600);
 }
 function resetDemo(){if(confirm('Reset all records to the sample demo data?')){data=sample();save()}}
 function clearData(){if(confirm('Delete all bookings, ledger entries, exchanges and checkout history? Room inventory will remain.')){data.bookings=[];data.ledger=[];data.exchanges=[];data.checkoutHistory=[];save()}}
