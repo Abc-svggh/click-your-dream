@@ -139,8 +139,41 @@ function roomBooking(no){return data.bookings.find(b=>!b.checkedOut&&b.rooms.inc
 function page(p){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===p));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));$('pageTitle').textContent=document.querySelector('[data-page="'+p+'"] span:last-child').textContent;render()}
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>page(b.dataset.page)));
 function render(){renderDashboard();renderRooms();renderInhouse();renderDailyCheckin();renderCheckoutReport();renderGroups();renderExchange();renderManage();renderBookings();renderLedger();fillBookingSelects()}
-function renderDashboard(){let totalBeds=data.rooms.reduce((a,r)=>a+r.beds,0),occRooms=0,occBeds=0,due=0,avail=0,emptyBeds=0,floors=[];for(let f=7;f<=10;f++){let rr=data.rooms.filter(r=>Math.floor(+r.no/100)===f),ob=0,or=0;rr.forEach(r=>{let b=roomBooking(r.no);if(b){if(status(b)==='due')due++;else occRooms++;or++;ob+=r.beds}else{avail++;emptyBeds+=r.beds}});occBeds+=ob;floors.push({f,rooms:rr.length,beds:rr.reduce((a,r)=>a+r.beds,0),occ:ob,empty:rr.reduce((a,r)=>a+r.beds,0)-ob})}
-$('dRooms').textContent=data.rooms.length;$('dBeds').textContent=totalBeds;$('dOccupied').textContent=occBeds;$('dEmpty').textContent=emptyBeds;$('dOccupiedRooms').textContent=(occRooms+due)+' occupied / due rooms';$('dEmptyRooms').textContent=avail+' available rooms';$('dAvailable').textContent=avail;$('dInhouse').textContent=occRooms;$('dDue').textContent=due;let pct=totalBeds?Math.round(occBeds/totalBeds*100):0;$('occupancyPct').textContent=pct+'% occupied';$('occupancyBar').style.width=pct+'%';$('floorSummary').innerHTML=floors.map(x=>`<tr><td>${x.f}th Floor</td><td>${x.rooms}</td><td>${x.beds}</td><td>${x.occ}</td><td>${x.empty}</td></tr>`).join('');let groups=groupStats();$('dashGroups').innerHTML=groups.map(g=>`<div class="groupcard"><b>${esc(g.name)}</b><div>${g.rooms} rooms · ${g.beds} beds</div><small class="muted">${g.category==='Uzbek'?'Uzbek group':'Other group'}</small></div>`).join('')||'<div class="empty">No active groups.</div>'}
+function renderDashboard(){
+ const totalRooms=data.rooms.length;
+ const totalBeds=data.rooms.reduce((sum,r)=>sum+(Number(r.beds)||0),0);
+ let occRooms=0,occBeds=0,due=0,avail=0,emptyBeds=0;
+ const floorMap=new Map();
+ data.rooms.forEach(r=>{
+   const floor=Math.floor(Number(r.no)/100);
+   if(!floorMap.has(floor))floorMap.set(floor,{f:floor,rooms:0,beds:0,occ:0,empty:0});
+   const row=floorMap.get(floor),bedCount=Number(r.beds)||0;
+   row.rooms++;row.beds+=bedCount;
+   const b=roomBooking(r.no);
+   if(b){
+     row.occ+=bedCount;occBeds+=bedCount;
+     if(status(b)==='due')due++;else occRooms++;
+   }else{
+     avail++;emptyBeds+=bedCount;row.empty+=bedCount;
+   }
+ });
+ const occupiedOrDue=occRooms+due;
+ $('dRooms').textContent=totalRooms;
+ $('dBeds').textContent=totalBeds;
+ $('dOccupied').textContent=occBeds;
+ $('dEmpty').textContent=emptyBeds;
+ $('dOccupiedRooms').textContent=occupiedOrDue+' occupied / due rooms';
+ $('dEmptyRooms').textContent=avail+' available rooms';
+ $('dAvailable').textContent=avail;
+ $('dInhouse').textContent=occRooms;
+ $('dDue').textContent=due;
+ const pct=totalBeds?Math.round(occBeds/totalBeds*100):0;
+ $('occupancyPct').textContent=pct+'% occupied';
+ $('occupancyBar').style.width=pct+'%';
+ $('floorSummary').innerHTML=[...floorMap.values()].sort((a,b)=>a.f-b.f).map(x=>'<tr><td>'+x.f+'th Floor</td><td>'+x.rooms+'</td><td>'+x.beds+'</td><td>'+x.occ+'</td><td>'+x.empty+'</td></tr>').join('');
+ const groups=groupStats();
+ $('dashGroups').innerHTML=groups.map(g=>'<div class="groupcard"><b>'+esc(g.name)+'</b><div>'+g.rooms+' rooms · '+g.beds+' beds</div><small class="muted">'+(g.category==='Uzbek'?'Uzbek group':'Other group')+'</small></div>').join('')||'<div class="empty">No active groups.</div>';
+}
 function groupStats(){let m={};data.bookings.filter(b=>!b.checkedOut&&['occupied','due'].includes(status(b))).forEach(b=>{let k=b.name||'Unnamed Group';if(!m[k])m[k]={name:k,rooms:0,beds:0,category:b.category||'General',numbers:[]};b.rooms.forEach(r=>{if(roomBooking(r)===b){m[k].rooms++;m[k].beds+=beds(r);m[k].numbers.push(r)}})});return Object.values(m)}
 function renderRooms(){let f=$('floorFilter')?.value||'all',s=$('statusFilter')?.value||'all',q=($('roomSearch')?.value||'').toLowerCase();$('roomGrid').innerHTML=data.rooms.filter(r=>(f==='all'||Math.floor(+r.no/100)===+f)&&(s==='all'||(roomBooking(r.no)?status(roomBooking(r.no))==='due'?'due':'occupied':'available')===s)&&r.no.toLowerCase().includes(q)).map(r=>{let b=roomBooking(r.no),st=b?(status(b)==='due'?'due':'occupied'):'available';return `<div class="room ${st}"><strong>${esc(r.no)}</strong><small>${r.beds} Beds · ${st==='due'?'Checkout due':st==='occupied'?'In-house':'Available'}</small></div>`}).join('')||'<div class="empty">No matching rooms.</div>'}
 function renderInhouse(){
