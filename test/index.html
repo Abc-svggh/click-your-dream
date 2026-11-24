@@ -354,5 +354,6 @@ function undoTestChange(){
  if(!confirm('Restore the previous saved version of the TEST data?'))return;
  try{data=JSON.parse(previous);data.expenses=data.expenses||[];data.activity=data.activity||[];localStorage.setItem(KEY,JSON.stringify(data));localStorage.removeItem(KEY+'_undo');render();renderSmartTools();alert('Previous test data restored.')}catch(e){alert('Undo could not restore the previous data.')}
 }
-\nload();render();updateCalc();if($('expenseDate'))$('expenseDate').value=iso(today);
+
+load();render();updateCalc();if($('expenseDate'))$('expenseDate').value=iso(today);
 </script></body></html>
