@@ -165,7 +165,48 @@ function addRoom(){let no=$('editNewNo').value.trim(),bed=+$('editBeds').value;i
 function openVoucher(no){$('voucherBooking').value=no;page('voucher');generateVoucher()}
 function generateVoucher(){let no=$('voucherBooking').value,b=data.bookings.find(x=>x.no===no);if(!b){$('voucherContent').innerHTML='<div class="empty">Booking not found.</div>';return}let t=totals(b);$('voucherContent').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--wine);padding-bottom:12px"><div><h2 style="margin:0;color:var(--wine)">CLICK YOUR DREAM</h2><small>Travel & Tourism · Booking Voucher</small></div><b>${esc(b.no)}</b></div><h3 style="margin-top:22px">Booking Details</h3><div class="grid two"><div><b>Client / Group:</b> ${esc(b.name)}<br><b>Hotel:</b> ${esc(b.hotel)}<br><b>Vendor:</b> ${esc(b.vendor)}<br><b>Category:</b> ${esc(b.category)}</div><div><b>Check-in:</b> ${b.in}<br><b>Check-out:</b> ${b.out}<br><b>Total Nights:</b> ${t.n}<br><b>Total Rooms:</b> ${t.rooms}<br><b>Total Beds:</b> ${t.beds}</div></div><h3>Room Allocation</h3><p>${b.rooms.map(r=>esc(r)+' ('+beds(r)+' beds)').join(' · ')}</p><h3>Financial Summary</h3><table style="min-width:0"><tr><td>Total Purchase</td><td>${money(t.purchase)}</td></tr><tr><td>Total Selling</td><td>${money(t.selling)}</td></tr><tr><td>Vendor Balance Due</td><td>${money(t.vendorDue)}</td></tr><tr><td>Client Balance Due</td><td>${money(t.clientDue)}</td></tr><tr><td><b>Estimated Profit</b></td><td><b>${money(t.profit)}</b></td></tr></table><p style="margin-top:28px;color:#8b7770;font-size:11px">This voucher is generated from the saved reservation record. Please verify all details before sharing.</p>`}
 function exportCSV(){let rows=[['Type','Reference','Name','Room Numbers','Beds','Amount','Date','Status','Details']];data.rooms.forEach(r=>rows.push(['Inventory',r.no,'',r.no,r.beds,'','','','']));data.bookings.forEach(b=>{let t=totals(b);rows.push(['Booking',b.no,b.name,b.rooms.join(' '),t.beds,t.selling,b.in,'Active','Vendor: '+b.vendor+'; Purchase: '+t.purchase+'; Profit: '+t.profit])});data.ledger.forEach(x=>rows.push(['Ledger',x.booking,x.party,'','',x.amount,x.date,x.type,x.note]));data.exchanges.forEach(x=>rows.push(['Exchange',x.oldNo,x.company,x.newNo,'','',x.date,'Exchanged',x.employee+' '+x.note]));data.checkoutHistory.forEach(x=>rows.push(['Room Cleared',x.booking,x.group,x.room,'','',x.date,'Cleared','']));let csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='click-your-dream-data.csv';a.click();URL.revokeObjectURL(a.href)}
-function printSection(id){let target=$(id);if(!target){alert('Report section not found.');return}document.querySelectorAll('.page').forEach(x=>x.classList.remove('print-target'));target.classList.add('print-target');let oldTitle=document.title;document.title='Click Your Dream - '+(document.querySelector('[data-page="'+id+'"] span:last-child')?.textContent||'Report');let cleaned=false;const cleanup=()=>{if(cleaned)return;cleaned=true;target.classList.remove('print-target');document.title=oldTitle;window.removeEventListener('afterprint',cleanup)};window.addEventListener('afterprint',cleanup);target.getBoundingClientRect();requestAnimationFrame(()=>requestAnimationFrame(()=>{try{window.focus();window.print()}catch(e){cleanup();alert('PDF print could not be opened. Please try again from Chrome.')}}))}
+function printSection(id){
+ const target=$(id);if(!target){alert('Report section not found.');return}
+ if(id==='inhouse'&&typeof renderInhouse==='function')renderInhouse();
+ const title='Click Your Dream - '+(document.querySelector('[data-page="'+id+'"] span:last-child')?.textContent||'Report');
+ const clone=target.cloneNode(true);
+ clone.classList.add('print-target');
+ clone.querySelectorAll('.no-print,.print-action,.toolbar,button,input,select,textarea').forEach(el=>el.remove());
+ if(id==='inhouse'){
+   const table=clone.querySelector('.screen-only-table');if(table)table.remove();
+   const cards=clone.querySelector('#inhousePrintCards');
+   if(cards){cards.style.display='grid';cards.style.visibility='visible';}
+ }
+ const sourceStyle=document.querySelector('style')?.textContent||'';
+ const w=window.open('','_blank');
+ if(!w){alert('Print window blocked. Please allow pop-ups for this website and try again.');return}
+ const extra=`
+ @page{size:A4 portrait;margin:12mm}
+ html,body{margin:0;padding:0;background:#fff!important;color:#302522;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+ .print-target{display:block!important;width:100%!important}
+ .print-target>.panel{border:0!important;box-shadow:none!important;padding:0!important;margin:0!important}
+ .print-brand{display:flex!important;align-items:center;gap:15px;border-bottom:3px solid #642321;padding:0 0 12px;margin:0 0 14px}
+ .print-brand img{width:78px;height:65px;object-fit:contain}
+ .print-brand h2{font-size:22px!important}.print-brand p{font-size:12px!important}
+ .print-dashboard{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;margin:12px 0 18px!important}
+ .print-kpi{min-height:70px!important;padding:12px!important;break-inside:avoid}
+ .print-kpi strong{font-size:25px!important}
+ .print-room-grid{display:grid!important;visibility:visible!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin-top:12px!important}
+ .print-room-card{display:block!important;visibility:visible!important;background:#effaf3!important;border:2px solid #b9dfc7!important;border-left:7px solid #198754!important;border-radius:10px!important;padding:12px!important;min-height:125px!important;break-inside:avoid!important;page-break-inside:avoid!important}
+ .print-room-card.due{background:#fff0ef!important;border-color:#efb1ad!important;border-left-color:#c43b3b!important}
+ .print-room-card .room-no{font-size:25px!important;font-weight:800!important;line-height:1.25!important;color:#147443!important}
+ .print-room-card.due .room-no{color:#b52f2f!important}
+ .print-room-card .room-meta{font-size:13px!important;line-height:1.6!important;color:#263b30!important}
+ .print-room-card .room-status{font-size:11px!important;font-weight:800!important;padding:4px 9px!important}
+ .print-section-title{font-size:16px!important;font-weight:800!important;margin:14px 0 8px!important}
+ .pagehead,.panelhead h3{font-size:18px!important}
+ .print-target table{width:100%!important;min-width:0!important;border-collapse:collapse}
+ .print-target th,.print-target td{font-size:12px!important;padding:8px!important;color:#302522!important}
+ .print-target .tablewrap{overflow:visible!important}
+ `;
+ w.document.open();w.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><style>'+sourceStyle+'\\n'+extra+'</style></head><body>'+clone.outerHTML+'</body></html>');w.document.close();
+ w.onload=()=>{w.focus();setTimeout(()=>{try{w.print()}catch(e){alert('PDF print could not be opened.')}} ,350)};
+}
 function resetDemo(){if(confirm('Reset all records to the sample demo data?')){data=sample();save()}}
 function clearData(){if(confirm('Delete all bookings, ledger entries, exchanges and checkout history? Room inventory will remain.')){data.bookings=[];data.ledger=[];data.exchanges=[];data.checkoutHistory=[];save()}}
 load();render();updateCalc();
