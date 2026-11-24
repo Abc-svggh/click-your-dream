@@ -41,7 +41,7 @@
 
 
 /* Professional print cards and report status colors */
-.print-room-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.print-room-grid{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
 .print-room-card{border:1.5px solid #b9dfc7;border-left:6px solid #198754;border-radius:11px;background:#effaf3;padding:11px;break-inside:avoid;page-break-inside:avoid;color:#263b30}
 .print-room-card.due{border-color:#efb1ad;border-left-color:#c43b3b;background:#fff0ef}
 .print-room-card .room-no{font-size:23px;font-weight:800;color:#147443;display:block;margin-bottom:4px}
@@ -52,7 +52,7 @@
 .print-section-title{font-size:14px;font-weight:800;color:#642321;margin:16px 0 8px;border-bottom:1px solid #e8d7ca;padding-bottom:5px}
 .checkout-due-row{background:#fff0ef!important;color:#a52e2e;font-weight:700}
 @media print{
- .page.print-target .print-room-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+ .page.print-target .print-room-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
  .page.print-target .print-room-card{padding:9px}
  .page.print-target .print-room-card .room-no{font-size:20px}
  .page.print-target .screen-only-table{display:none!important}
