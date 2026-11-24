@@ -185,7 +185,7 @@ function status(b){if(b.checkedOut)return 'checkedout';if(b.out<=iso(today))retu
 function roomBooking(no){return data.bookings.find(b=>!b.checkedOut&&b.rooms.includes(String(no))&&['occupied','due'].includes(status(b)))}
 function page(p){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===p));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));$('pageTitle').textContent=document.querySelector('[data-page="'+p+'"] span:last-child').textContent;render()}
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>page(b.dataset.page)));
-function render(){renderDashboard();renderRooms();renderInhouse();renderDailyCheckin();renderCheckoutReport();renderGroups();renderExchange();renderManage();renderBookings();renderLedger();fillBookingSelects()}
+function render(){renderDashboard();renderRooms();renderInhouse();renderDailyCheckin();renderCheckoutReport();renderGroups();renderExchange();renderManage();renderBookings();renderLedger();fillBookingSelects();if($('smarttools'))renderSmartTools()}
 function renderDashboard(){
  const totalRooms=data.rooms.length;
  const totalBeds=data.rooms.reduce((sum,r)=>sum+(Number(r.beds)||0),0);
