@@ -302,7 +302,7 @@ function autoClearDueRooms(){
  data.bookings.forEach(b=>{
   if(b.checkedOut||!b.out||b.out>todayKey||!Array.isArray(b.rooms))return;
   b.rooms.forEach(room=>{const exists=data.checkoutHistory.some(x=>String(x.booking)===String(b.no)&&String(x.room)===String(room)&&String(x.date)===String(b.out));if(!exists){data.checkoutHistory.unshift({booking:b.no,group:b.name,room:String(room),date:b.out,hotel:b.hotel||'',checkin:b.in||''});changed=true;}});
-  if(b.rooms.length){b.rooms=[];b.checkedOut=true;changed=true;}
+  if(b.rooms.length){b.checkedOut=true;changed=true;}
  });
  if(changed)save(false);
 }
