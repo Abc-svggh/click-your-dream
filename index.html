@@ -66,6 +66,16 @@
  .page.print-target .checkout-due-row td{color:#a52e2e!important;background:#fff0ef!important}
 }
 @media(max-width:700px){.print-room-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* In-house live room register colors */
+#inhouse .screen-only-table table{min-width:980px}
+#inhouse .inhouse-data-row td{font-weight:600;border-bottom:2px solid #fff}
+#inhouse .inhouse-data-row.normal-room td{background:#d9ead3;color:#263b30}
+#inhouse .inhouse-data-row.uzbek-room td{background:#f4cccc;color:#642321}
+#inhouse .inhouse-data-row.empty-room td{background:#fff2cc;color:#6b571c}
+#inhouse .inhouse-data-row td:first-child{font-weight:800}
+#inhouse .inhouse-data-row td:nth-child(3){font-size:15px;font-weight:800}
+@media print{#inhouse .inhouse-data-row td{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
 
 
 /* In-house report: readable floor-wise multi-page PDF */
@@ -192,57 +202,39 @@ function renderDashboard(){
 function groupStats(){let m={};data.bookings.filter(b=>!b.checkedOut&&['occupied','due'].includes(status(b))).forEach(b=>{let k=b.name||'Unnamed Group';if(!m[k])m[k]={name:k,rooms:0,beds:0,category:b.category||'General',numbers:[]};b.rooms.forEach(r=>{if(roomBooking(r)===b){m[k].rooms++;m[k].beds+=beds(r);m[k].numbers.push(r)}})});return Object.values(m)}
 function renderRooms(){let f=$('floorFilter')?.value||'all',s=$('statusFilter')?.value||'all',q=($('roomSearch')?.value||'').toLowerCase();$('roomGrid').innerHTML=data.rooms.filter(r=>(f==='all'||Math.floor(+r.no/100)===+f)&&(s==='all'||(roomBooking(r.no)?status(roomBooking(r.no))==='due'?'due':'occupied':'available')===s)&&r.no.toLowerCase().includes(q)).map(r=>{let b=roomBooking(r.no),st=b?(status(b)==='due'?'due':'occupied'):'available';return `<div class="room ${st}"><strong>${esc(r.no)}</strong><small>${r.beds} Beds · ${st==='due'?'Checkout due':st==='occupied'?'In-house':'Available'}</small></div>`}).join('')||'<div class="empty">No matching rooms.</div>'}
 function renderInhouse(){
- // Use the room inventory as the single source of truth. This prevents
- // old/invalid room numbers in bookings from inflating live occupancy.
- const inventoryByNo=new Map(data.rooms.map(r=>[String(r.no),r]));
- const active=data.bookings.filter(b=>!b.checkedOut&&['occupied','due'].includes(status(b)));
- const allocated=new Set(),uzRooms=new Set();
- let uzBeds=0,allocatedBeds=0;
- data.rooms.forEach(room=>{
-   const b=roomBooking(room.no);
-   if(!b)return;
-   allocated.add(String(room.no));
-   allocatedBeds+=Number(room.beds)||0;
-   if((b.category||'').toLowerCase()==='uzbek'){
-     uzRooms.add(String(room.no));
-     uzBeds+=Number(room.beds)||0;
-   }
- });
- const emptyRooms=Math.max(0,data.rooms.length-allocated.size);
- const totalBeds=data.rooms.reduce((a,r)=>a+(Number(r.beds)||0),0);
- const emptyBeds=Math.max(0,totalBeds-allocatedBeds);
- $('printLogoInhouse').src=$('brandLogo').src;
- $('inhousePrintDate').textContent='Generated: '+new Date().toLocaleString('en-GB');
+ const inventory=data.rooms.slice().sort((a,b)=>Number(a.no)-Number(b.no));
+ const allocated=new Set(),uzRooms=new Set();let allocatedBeds=0,uzBeds=0;
+ inventory.forEach(room=>{const b=roomBooking(room.no);if(b){allocated.add(String(room.no));allocatedBeds+=Number(room.beds)||0;if((b.category||'').toLowerCase()==='uzbek'){uzRooms.add(String(room.no));uzBeds+=Number(room.beds)||0}}});
+ const emptyRooms=Math.max(0,inventory.length-allocated.size),totalBeds=inventory.reduce((n,r)=>n+(Number(r.beds)||0),0),emptyBeds=Math.max(0,totalBeds-allocatedBeds);
+ $('printLogoInhouse').src=$('brandLogo').src;$('inhousePrintDate').textContent='Generated: '+new Date().toLocaleString('en-GB');
  $('inhousePrintSummary').innerHTML=
-  `<div class="print-kpi allocated"><span>ROOMS ALLOTTED</span><strong>${allocated.size}</strong><small>${active.length} active reservations</small></div>
-   <div class="print-kpi empty"><span>EMPTY ROOMS</span><strong>${emptyRooms}</strong><small>Available in inventory</small></div>
+  `<div class="print-kpi allocated"><span>ROOMS ALLOTTED</span><strong>${allocated.size}</strong></div>
+   <div class="print-kpi empty"><span>EMPTY ROOMS</span><strong>${emptyRooms}</strong></div>
    <div class="print-kpi allocated"><span>BEDS ALLOTTED</span><strong>${allocatedBeds}</strong><small>Of ${totalBeds} total beds</small></div>
-   <div class="print-kpi empty"><span>EMPTY BEDS</span><strong>${emptyBeds}</strong><small>Available bed capacity</small></div>
-   <div class="print-kpi uzbek"><span>UZBEK ROOMS ALLOTTED</span><strong>${uzRooms.size}</strong><small>${uzBeds} beds allocated</small></div>
-   <div class="print-kpi resno"><span>ACTIVE RESERVATIONS</span><strong>${new Set(active.map(b=>b.no)).size}</strong><small>Reservation numbers listed below</small></div>`;
- let q=($('inSearch')?.value||'').toLowerCase(),gf=$('groupFilter')?.value||'all',rows=[],cardsByFloor=new Map();
- active.forEach(b=>b.rooms.forEach(r=>{
-   const roomNo=String(r);
-   if(!inventoryByNo.has(roomNo)||roomBooking(roomNo)!==b)return;
-   const isUz=(b.category||'').toLowerCase()==='uzbek';
-   const match=(b.no+' '+b.name+' '+roomNo).toLowerCase().includes(q);
-   if(!match||!(gf==='all'||(gf==='Uzbek'&&isUz)||(gf==='Other'&&!isUz)))return;
-   const due=status(b)==='due',bedCount=Number(inventoryByNo.get(roomNo).beds)||0;
-   const floor=Math.floor(Number(roomNo)/100);if(!cardsByFloor.has(floor))cardsByFloor.set(floor,[]);cardsByFloor.get(floor).push(`<div class="print-room-card ${due?'due':''}"><span class="room-no">ROOM ${esc(roomNo)} <small>· ${bedCount} Beds</small></span><div class="room-meta"><b>Guest: ${esc(b.name)}</b><br><b>Booking No:</b> ${esc(b.no)}<br><b>Hotel:</b> ${esc(b.hotel||'—')}<br><b>Check-in:</b> ${esc(b.in)}<br><b>Check-out:</b> ${esc(b.out)}<br><b>Total Nights:</b> ${nights(b)}</div><span class="room-status">${due?'CHECK-OUT DUE':'IN-HOUSE'}</span></div>`);
-   rows.push(`<tr class="${due?'checkout-due-row':''}"><td>${esc(b.no)}</td><td>${esc(b.name)}</td><td>${esc(roomNo)}</td><td>${bedCount}</td><td>${esc(b.hotel)}</td><td>${b.in}</td><td>${b.out}</td><td>${nights(b)}</td><td><span class="pill ${due?'red':'green'}">${due?'Checkout due':'In-house'}</span></td><td><button class="btn tiny secondary" onclick="editInhouseRoom('${esc(b.no)}','${esc(roomNo)}')">Edit Room</button> <button class="btn tiny danger" onclick="releaseRoom('${esc(b.no)}','${esc(roomNo)}')">Clear Room</button></td></tr>`);
- }));
- const cards=[...cardsByFloor.entries()].sort((a,b)=>a[0]-b[0]).map(([floor,items])=>`<div class="print-floor-group"><div class="print-section-title">${floor}th Floor · ${items.length} In-House Rooms</div><div class="print-floor-cards">${items.join('')}</div></div>`);$('inhousePrintCards').innerHTML=cards.join('')||'<div class="empty">No in-house room allocations.</div>';
- $('inRows').innerHTML=rows.join('')||'<tr><td colspan="10" class="empty">No in-house room allocations.</td></tr>';
+   <div class="print-kpi empty"><span>EMPTY BEDS</span><strong>${emptyBeds}</strong></div>
+   <div class="print-kpi uzbek"><span>UZBEK ROOMS</span><strong>${uzRooms.size}</strong><small>${uzBeds} beds allocated</small></div>
+   <div class="print-kpi resno"><span>ACTIVE RESERVATIONS</span><strong>${new Set(inventory.map(r=>roomBooking(r.no)).filter(Boolean).map(b=>b.no)).size}</strong></div>`;
+ const q=($('inSearch')?.value||'').toLowerCase(),gf=$('groupFilter')?.value||'all';
+ const rows=inventory.map(room=>{
+   const no=String(room.no),b=roomBooking(no),isUz=!!b&&(b.category||'').toLowerCase()==='uzbek';
+   const empty=!b,match=(no+' '+(b?.no||'')+' '+(b?.name||'')+' '+(b?.hotel||'')).toLowerCase().includes(q);
+   const filterOk=gf==='all'||(gf==='Uzbek'&&isUz)||(gf==='Other'&&(!isUz&&!empty));
+   if(!match||!filterOk)return '';
+   const due=!!b&&status(b)==='due',cls=empty?'empty-room':isUz?'uzbek-room':'normal-room';
+   return `<tr class="inhouse-data-row ${cls}">
+    <td>${b?esc(b.no):'—'}</td><td>${b?esc(b.name):'—'}</td><td><b>${esc(no)}</b></td><td>${Number(room.beds)||0}</td><td>${b?esc(b.hotel||'—'):'—'}</td><td>${b?esc(b.in):'—'}</td><td>${b?esc(b.out):'—'}</td><td>${b?nights(b):'—'}</td>
+    <td><span class="pill ${empty?'amber':due?'red':'green'}">${empty?'EMPTY':due?'CHECK-OUT DUE':isUz?'UZBEK · IN-HOUSE':'IN-HOUSE'}</span></td>
+    <td>${b?`<button class="btn tiny secondary" onclick="editInhouseRoom('${esc(b.no)}','${esc(no)}')">Edit Room</button> <button class="btn tiny danger" onclick="releaseRoom('${esc(b.no)}','${esc(no)}')">Clear Room</button>`: '—'}</td>
+   </tr>`;
+ }).filter(Boolean);
+ $('inRows').innerHTML=rows.join('')||'<tr><td colspan="10" class="empty">No rooms match this search.</td></tr>';
+ $('inhousePrintCards').innerHTML='';
 }
 function getInhouseRows(){
- const inventoryByNo=new Map(data.rooms.map(r=>[String(r.no),r]));
- const active=data.bookings.filter(b=>!b.checkedOut&&['occupied','due'].includes(status(b)));
- const rows=[];
- active.forEach(b=>b.rooms.forEach(room=>{
-  const no=String(room);if(!inventoryByNo.has(no)||roomBooking(no)!==b)return;
-  rows.push({floor:Math.floor(Number(no)/100),booking:b.no,guest:b.name,hotel:b.hotel||'',room:no,beds:Number(inventoryByNo.get(no).beds)||0,checkin:b.in,checkout:b.out,nights:nights(b),status:status(b)==='due'?'CHECK-OUT DUE':'IN-HOUSE'});
- }));
- return rows.sort((a,b)=>a.floor-b.floor||Number(a.room)-Number(b.room));
+ return data.rooms.map(room=>{
+  const no=String(room.no),b=roomBooking(no),isUz=!!b&&(b.category||'').toLowerCase()==='uzbek';
+  return {floor:Math.floor(Number(no)/100),booking:b?.no||'',guest:b?.name||'',hotel:b?.hotel||'',room:no,beds:Number(room.beds)||0,checkin:b?.in||'',checkout:b?.out||'',nights:b?nights(b):'',status:!b?'EMPTY':status(b)==='due'?'CHECK-OUT DUE':isUz?'UZBEK · IN-HOUSE':'IN-HOUSE',category:isUz?'Uzbek':!b?'Empty':'Other'};
+ }).sort((a,b)=>a.floor-b.floor||Number(a.room)-Number(b.room));
 }
 function xmlCell(value,type){
  const t=type||'String';return '<Cell><Data ss:Type="'+t+'">'+String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')+'</Data></Cell>';
@@ -261,10 +253,10 @@ function printInhousePDF(){
  const grouped=new Map();rows.forEach(r=>{if(!grouped.has(r.floor))grouped.set(r.floor,[]);grouped.get(r.floor).push(r)});
  const totalBeds=rows.reduce((n,r)=>n+r.beds,0),totalRooms=rows.length;
  const safe=v=>String(v??'—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
- const sections=[...grouped.entries()].map(([floor,list])=>'<section class="floor"><h2>'+floor+'th Floor · '+list.length+' Rooms</h2><div class="cards">'+list.map(r=>'<article class="room"><header><b>ROOM '+safe(r.room)+'</b><strong>'+r.beds+' Beds</strong></header><p><b>Guest:</b> '+safe(r.guest)+'</p><p><b>Booking No:</b> '+safe(r.booking)+'</p><p><b>Hotel:</b> '+safe(r.hotel)+'</p><p><b>Check-in:</b> '+safe(r.checkin)+' &nbsp; <b>Check-out:</b> '+safe(r.checkout)+'</p><p><b>Nights:</b> '+r.nights+'</p><span class="'+(r.status==='CHECK-OUT DUE'?'due':'live')+'">'+r.status+'</span></article>').join('')+'</div></section>').join('');
+ const sections=[...grouped.entries()].map(([floor,list])=>'<section class="floor"><h2>'+floor+'th Floor · '+list.length+' Rooms</h2><div class="cards">'+list.map(r=>'<article class="room '+(r.category==='Uzbek'?'uzbek':r.category==='Empty'?'empty':'normal')+'"><header><b>ROOM '+safe(r.room)+'</b><strong>'+r.beds+' Beds</strong></header><p><b>Guest:</b> '+safe(r.guest)+'</p><p><b>Booking No:</b> '+safe(r.booking)+'</p><p><b>Hotel:</b> '+safe(r.hotel)+'</p><p><b>Check-in:</b> '+safe(r.checkin||'—')+' &nbsp; <b>Check-out:</b> '+safe(r.checkout||'—')+'</p><p><b>Nights:</b> '+(r.nights||'—')+'</p><span class="'+(r.category==='Empty'?'emptytag':r.status==='CHECK-OUT DUE'?'due':'live')+'">'+r.status+'</span></article>').join('')+'</div></section>').join('');
  const w=window.open('','_blank');
  if(!w){alert('Browser ne print tab block kar diya. Is website ko Chrome mein khol kar dobara PDF button dabayein.');return}
- const html='<!doctype html><html><head><meta charset="utf-8"><title>Click Your Dream - Inhouse Report</title><style>*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#302522;margin:0;padding:18px}h1{color:#642321;margin:0;font-size:23px}header.top{border-bottom:3px solid #642321;padding-bottom:10px;margin-bottom:14px}.sub{color:#765f58;margin-top:4px}.summary{display:flex;gap:12px;margin:12px 0 18px}.kpi{border:1px solid #d8c5b8;background:#fff8f1;padding:10px 15px;border-radius:8px;flex:1}.kpi b{display:block;font-size:21px;color:#642321;margin-top:4px}.floor{margin:0 0 18px}h2{font-size:15px;color:#642321;border-bottom:1px solid #d8c5b8;padding:0 0 6px;margin:12px 0 9px;break-after:avoid}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.room{border:1.5px solid #b9dfc7;border-left:6px solid #198754;background:#effaf3;border-radius:8px;padding:10px;break-inside:avoid;page-break-inside:avoid;min-height:125px}.room header{display:flex;justify-content:space-between;align-items:center;color:#147443;font-size:17px}.room p{margin:4px 0;line-height:1.35}.live,.due{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:bold}.live{background:#d8f1e1;color:#126b3e}.due{background:#fbdcda;color:#a52e2e}.empty{padding:20px;background:#fff4e7;border-radius:8px}@page{size:A4 landscape;margin:10mm}@media print{body{padding:0}.room{min-height:118px}}</style></head><body><header class="top"><h1>CLICK YOUR DREAM</h1><div class="sub">IN-HOUSE ROOM & BOOKING REPORT · Generated: '+safe(new Date().toLocaleString())+'</div></header><div class="summary"><div class="kpi">TOTAL IN-HOUSE ROOMS<b>'+totalRooms+'</b></div><div class="kpi">TOTAL ALLOCATED BEDS<b>'+totalBeds+'</b></div><div class="kpi">ACTIVE BOOKINGS<b>'+new Set(rows.map(r=>r.booking)).size+'</b></div></div>'+(sections||'<div class="empty">No in-house room allocations found for the selected date.</div>')+'</body></html>';
+ const html='<!doctype html><html><head><meta charset="utf-8"><title>Click Your Dream - Inhouse Report</title><style>*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#302522;margin:0;padding:18px}h1{color:#642321;margin:0;font-size:23px}header.top{border-bottom:3px solid #642321;padding-bottom:10px;margin-bottom:14px}.sub{color:#765f58;margin-top:4px}.summary{display:flex;gap:12px;margin:12px 0 18px}.kpi{border:1px solid #d8c5b8;background:#fff8f1;padding:10px 15px;border-radius:8px;flex:1}.kpi b{display:block;font-size:21px;color:#642321;margin-top:4px}.floor{margin:0 0 18px}h2{font-size:15px;color:#642321;border-bottom:1px solid #d8c5b8;padding:0 0 6px;margin:12px 0 9px;break-after:avoid}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.room{border:1.5px solid #b9dfc7;border-left:6px solid #198754;background:#effaf3;border-radius:8px;padding:10px;break-inside:avoid;page-break-inside:avoid;min-height:125px}.room.uzbek{background:#f4cccc;border-color:#d98b8b;border-left-color:#b42323}.room.empty{background:#fff2cc;border-color:#e6cf73;border-left-color:#c49a16}.room.empty header,.room.empty p{color:#6b571c}.room header{display:flex;justify-content:space-between;align-items:center;color:#147443;font-size:17px}.room p{margin:4px 0;line-height:1.35}.live,.due{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:bold}.live{background:#d8f1e1;color:#126b3e}.due{background:#fbdcda;color:#a52e2e}.emptytag{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:bold;background:#ffeb99;color:#6b571c}.empty{padding:20px;background:#fff4e7;border-radius:8px}@page{size:A4 landscape;margin:10mm}@media print{body{padding:0}.room{min-height:118px}}</style></head><body><header class="top"><h1>CLICK YOUR DREAM</h1><div class="sub">IN-HOUSE ROOM & BOOKING REPORT · Generated: '+safe(new Date().toLocaleString())+'</div></header><div class="summary"><div class="kpi">TOTAL IN-HOUSE ROOMS<b>'+totalRooms+'</b></div><div class="kpi">TOTAL ALLOCATED BEDS<b>'+totalBeds+'</b></div><div class="kpi">ACTIVE BOOKINGS<b>'+new Set(rows.map(r=>r.booking)).size+'</b></div></div>'+(sections||'<div class="empty">No in-house room allocations found for the selected date.</div>')+'</body></html>';
  w.document.open();w.document.write(html);w.document.close();w.onload=()=>{w.focus();setTimeout(()=>w.print(),350)};
 }
 function renderGroups(){let gs=groupStats();$('groupCards').innerHTML=gs.map(g=>`<div class="groupcard"><b>${esc(g.name)}</b><div>${g.rooms} Rooms · ${g.beds} Beds</div><small class="muted">${g.numbers.join(', ')}</small></div>`).join('')||'<div class="empty">No active groups.</div>';let row=g=>`<tr><td>${esc(g.name)}</td><td>${g.rooms}</td><td>${g.beds}</td><td>${g.numbers.join(', ')}</td></tr>`;$('uzbekRows').innerHTML=gs.filter(g=>g.category==='Uzbek').map(row).join('')||'<tr><td colspan="4" class="empty">No Uzbek groups in-house.</td></tr>';$('otherRows').innerHTML=gs.filter(g=>g.category!=='Uzbek').map(row).join('')||'<tr><td colspan="4" class="empty">No other groups in-house.</td></tr>'}
