@@ -304,7 +304,7 @@ function autoClearDueRooms(){
   b.rooms.forEach(room=>{const exists=data.checkoutHistory.some(x=>String(x.booking)===String(b.no)&&String(x.room)===String(room)&&String(x.date)===String(b.out));if(!exists){data.checkoutHistory.unshift({booking:b.no,group:b.name,room:String(room),date:b.out,hotel:b.hotel||'',checkin:b.in||''});changed=true;}});
   if(b.rooms.length){b.checkedOut=true;changed=true;}
  });
- if(changed)save(false);
+ if(changed)save(false);return changed;
 }
 function releaseRoom(no,room){let b=data.bookings.find(x=>x.no===no);if(!b||!confirm('Clear room '+room+' from the in-house report? The action will be recorded.'))return;b.rooms=b.rooms.filter(r=>r!==room);data.checkoutHistory.unshift({booking:no,group:b.name,room,date:iso(today)});if(!b.rooms.length)b.checkedOut=true;save()}
 function exchangeRoom(){let old=$('xOld').value.trim(),neu=$('xNew').value.trim(),company=$('xCompany').value.trim(),employee=$('xEmployee').value.trim();if(!old||!neu||!company||!employee){alert('Complete both room numbers, company and employee.');return}let i=data.rooms.findIndex(r=>r.no===old);if(i<0){alert('Room to give is not in your inventory.');return}if(data.rooms.some(r=>r.no===neu)){alert('Received room already exists in your inventory.');return}let room=data.rooms[i];data.rooms[i]={...room,no:neu};data.bookings.forEach(b=>b.rooms=b.rooms.map(r=>r===old?neu:r));data.exchanges.unshift({date:$('xDate').value||iso(today),oldNo:old,newNo:neu,company,employee,note:$('xNote').value});save();['xOld','xNew','xCompany','xDate','xEmployee','xNote'].forEach(id=>$(id).value='');alert('Exchange saved. Inventory and all booking room references have been updated.')}
@@ -381,5 +381,5 @@ function undoTestChange(){
  try{data=JSON.parse(previous);data.expenses=data.expenses||[];data.activity=data.activity||[];localStorage.setItem(KEY,JSON.stringify(data));localStorage.removeItem(KEY+'_undo');render();renderSmartTools();alert('Previous test data restored.')}catch(e){alert('Undo could not restore the previous data.')}
 }
 
-load();autoClearDueRooms();render();updateCalc();if($('expenseDate'))$('expenseDate').value=iso(today);
+load();autoClearDueRooms();render();updateCalc();if($('expenseDate'))$('expenseDate').value=iso(today);setInterval(()=>{if(autoClearDueRooms())render()},60000);
 </script></body></html>
